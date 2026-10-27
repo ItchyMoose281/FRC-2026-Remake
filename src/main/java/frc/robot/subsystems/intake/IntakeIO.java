@@ -21,8 +21,12 @@ public interface IntakeIO {
   }
 
   public default void updateInputs(IntakeIOInputsAutoLogged inputs) {}
+
   public default void setIntakeVoltage(Voltage voltage) {}
+
   public default void setPivotVoltage(Voltage voltage) {}
+
   public default void setPivotAngle(Angle angle) {}
+
   public default void resetPivotAngle(Angle angle) {}
 }
