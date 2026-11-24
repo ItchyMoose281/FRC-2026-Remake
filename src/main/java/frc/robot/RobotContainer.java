@@ -7,9 +7,10 @@
 
 package frc.robot;
 
+import static edu.wpi.first.units.Units.*;
+
 import com.pathplanner.lib.auto.AutoBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -24,9 +25,18 @@ import frc.robot.subsystems.drive.GyroIOPigeon2;
 import frc.robot.subsystems.drive.ModuleIO;
 import frc.robot.subsystems.drive.ModuleIOSim;
 import frc.robot.subsystems.drive.ModuleIOTalonFX;
+import frc.robot.subsystems.feeder.FeederIO;
+import frc.robot.subsystems.feeder.FeederIOTalonFX;
+import frc.robot.subsystems.feeder.FeederSubsystem;
 import frc.robot.subsystems.intake.IntakeIO;
 import frc.robot.subsystems.intake.IntakeIOTalonFX;
 import frc.robot.subsystems.intake.IntakeSubsystem;
+import frc.robot.subsystems.shooter.ShooterIO;
+import frc.robot.subsystems.shooter.ShooterIOTalonFX;
+import frc.robot.subsystems.shooter.ShooterSubsystem;
+import frc.robot.subsystems.vision.*;
+import frc.robot.util.AllianceFlipUtil;
+import frc.robot.util.FieldConstants;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 /**
@@ -39,6 +49,9 @@ public class RobotContainer {
   // Subsystems
   private final Drive swerve;
   private final IntakeSubsystem intake;
+  private final FeederSubsystem feeder;
+  private final ShooterSubsystem shooter;
+  private final VisionSubsystem vision;
 
   // Controller
   private final CommandXboxController driveController = new CommandXboxController(0);
@@ -54,15 +67,31 @@ public class RobotContainer {
         // ModuleIOTalonFX is intended for modules with TalonFX drive, TalonFX turn, and
         // a CANcoder
         swerve =
-                new Drive(
-                        new GyroIOPigeon2(),
-                        new ModuleIOTalonFX(TunerConstants.FrontLeft),
-                        new ModuleIOTalonFX(TunerConstants.FrontRight),
-                        new ModuleIOTalonFX(TunerConstants.BackLeft),
-                        new ModuleIOTalonFX(TunerConstants.BackRight));
+            new Drive(
+                new GyroIOPigeon2(),
+                new ModuleIOTalonFX(TunerConstants.FrontLeft),
+                new ModuleIOTalonFX(TunerConstants.FrontRight),
+                new ModuleIOTalonFX(TunerConstants.BackLeft),
+                new ModuleIOTalonFX(TunerConstants.BackRight));
 
         intake = new IntakeSubsystem(new IntakeIOTalonFX());
-
+        feeder = new FeederSubsystem(new FeederIOTalonFX());
+        shooter = new ShooterSubsystem(new ShooterIOTalonFX());
+        vision =
+            new VisionSubsystem(
+                VisionConstants.FILTER_PARAMETERS,
+                new VisionIOPhotonReal(
+                    "FrontCamera",
+                    VisionConstants.FRONT_CAMERA_TRANSFORM,
+                    FieldConstants.defaultAprilTagType.getLayout()),
+                new VisionIOPhotonReal(
+                    "LeftCamera",
+                    VisionConstants.LEFT_CAMERA_TRANSFORM,
+                    FieldConstants.defaultAprilTagType.getLayout()),
+                new VisionIOPhotonReal(
+                    "RightCamera",
+                    VisionConstants.RIGHT_CAMERA_TRANSFORM,
+                    FieldConstants.defaultAprilTagType.getLayout()));
       }
 
       case SIM -> {
@@ -76,23 +105,41 @@ public class RobotContainer {
                 new ModuleIOSim(TunerConstants.BackRight));
 
         intake = new IntakeSubsystem(new IntakeIO() {});
-
-        }
+        feeder = new FeederSubsystem(new FeederIO() {});
+        shooter = new ShooterSubsystem(new ShooterIO() {});
+        vision =
+            new VisionSubsystem(
+                VisionConstants.FILTER_PARAMETERS,
+                new VisionIOPhotonSimulation(
+                    "LeftCamera",
+                    VisionConstants.LEFT_CAMERA_TRANSFORM,
+                    FieldConstants.defaultAprilTagType.getLayout(),
+                    VisionConstants.SIM_CAMERA_PROPERTIES));
+      }
 
       case REPLAY -> {
-        swerve = new Drive(
+        swerve =
+            new Drive(
                 new GyroIO() {},
                 new ModuleIO() {},
                 new ModuleIO() {},
                 new ModuleIO() {},
-                new ModuleIO() {}
-        );
+                new ModuleIO() {});
 
         intake = new IntakeSubsystem(new IntakeIO() {});
+        feeder = new FeederSubsystem(new FeederIO() {});
+        shooter = new ShooterSubsystem(new ShooterIO() {});
+        vision =
+            new VisionSubsystem(
+                VisionConstants.FILTER_PARAMETERS,
+                new VisionIOPhotonSimulation(
+                    "LeftCamera",
+                    VisionConstants.LEFT_CAMERA_TRANSFORM,
+                    FieldConstants.defaultAprilTagType.getLayout(),
+                    VisionConstants.SIM_CAMERA_PROPERTIES));
       }
       default -> throw new IllegalStateException("Unexpected value: " + Constants.getMode());
     }
-
 
     // Set up auto routines
     autoChooser = new LoggedDashboardChooser<>("Auto Choices", AutoBuilder.buildAutoChooser());
@@ -127,15 +174,22 @@ public class RobotContainer {
     // Default command, normal field-relative drive
     swerve.setDefaultCommand(
         DriveCommands.joystickDrive(
-                swerve,
+            swerve,
             () -> -driveController.getLeftY(),
             () -> -driveController.getLeftX(),
             () -> -driveController.getRightX()));
 
+    vision.setDefaultCommand(
+        vision.processVision(RobotState.getInstance()::getEstimatedPose).ignoringDisable(true));
+
     // Start button: reset robot pose to origin
-    driveController.start().onTrue(
-            Commands.runOnce(() -> swerve.setPose(new Pose2d()))
-    );
+    driveController.start().onTrue(Commands.runOnce(() -> swerve.setPose(new Pose2d())));
+
+    // B button: run feeder at 12V
+    driveController.b().whileTrue(feeder.runFeeder(Volts.of(12.0)));
+
+    // Y button: agitate intake
+    driveController.y().whileTrue(intake.agitateCommand());
 
     // Left stick button: home the intake
     driveController.leftStick().onTrue(intake.homingCommand());
@@ -146,13 +200,30 @@ public class RobotContainer {
     // Left bumper: stow intake
     driveController.leftBumper().onTrue(intake.setPivotPosition(IntakeSubsystem.Position.STOWED));
 
+    // Right Trigger: run shooter as set on dashboard
+    driveController.leftTrigger().whileTrue(shooter.runDasboard());
+
+    driveController
+        .rightTrigger()
+        .and(driveController.leftTrigger().negate())
+        .whileTrue(
+            DriveCommands.joystickDriveAtAngle(
+                    swerve,
+                    () -> -driveController.getLeftY(),
+                    () -> -driveController.getLeftX(),
+                    () ->
+                        RobotState.getInstance()
+                            .getPointAtAngle(
+                                () -> AllianceFlipUtil.apply(FieldConstants.Hub.goalPoint)))
+                .alongWith(shooter.autoShot()));
+  }
+
   /**
    * Use this to pass the autonomous command to the main {@link Robot} class.
    *
    * @return the command to run in autonomous
    */
-//  public Command getAutonomousCommand() {
-//    return autoChooser.get();
-//  }
+  public Command getAutonomousCommand() {
+    return autoChooser.get();
   }
 }
