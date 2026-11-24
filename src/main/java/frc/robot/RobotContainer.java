@@ -10,6 +10,7 @@ package frc.robot;
 import static edu.wpi.first.units.Units.*;
 
 import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.auto.NamedCommands;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.GenericHID;
@@ -19,6 +20,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.robot.commands.AutoCommands;
 import frc.robot.commands.DriveCommands;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.drive.Drive;
@@ -170,8 +172,9 @@ public class RobotContainer {
     testAutoChooser.addOption(
         "Drive SysId (Dynamic Reverse)", swerve.sysIdDynamic(SysIdRoutine.Direction.kReverse));
 
-    // Configure the button bindings
+    // Configure the button bindings and auto commands
     configureButtonBindings();
+    configureNamedCommands();
   }
 
   /**
@@ -226,6 +229,16 @@ public class RobotContainer {
                             .getPointAtAngle(
                                 () -> AllianceFlipUtil.apply(FieldConstants.Hub.goalPoint)))
                 .alongWith(shooter.autoShot()));
+  }
+
+  private void configureNamedCommands() {
+      NamedCommands.registerCommand("homeIntake", intake.homingCommand());
+      NamedCommands.registerCommand("lowerIntake", AutoCommands.lowerIntake(intake));
+      NamedCommands.registerCommand("runIntake", AutoCommands.runIntake(intake));
+      NamedCommands.registerCommand("stopIntake", AutoCommands.stopIntake(intake));
+      NamedCommands.registerCommand("raiseIntake", AutoCommands.raiseIntake(intake));
+      NamedCommands.registerCommand("aimAndShoot", AutoCommands.aimAndShoot(swerve, shooter, feeder, intake));
+      NamedCommands.registerCommand("aimAndShootAlt", AutoCommands.aimAndShootAlt(swerve, shooter, feeder, intake));
   }
 
   /**

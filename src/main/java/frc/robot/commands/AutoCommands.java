@@ -13,39 +13,58 @@ import frc.robot.util.FieldConstants;
 import static edu.wpi.first.units.Units.*;
 
 public class AutoCommands {
-  public static Command lowerIntake(IntakeSubsystem intake) {
-    return intake.setPivotPosition(IntakeSubsystem.Position.INTAKE);
-  }
 
-  public static Command runIntake(IntakeSubsystem intake) {
-    return intake.setIntakePower(IntakeSubsystem.Speed.INTAKE);
-  }
+    public static Command lowerIntake(IntakeSubsystem intake) {
+        return intake.setPivotPosition(IntakeSubsystem.Position.INTAKE);
+    }
 
-  public static Command stopIntake(IntakeSubsystem intake) {
-    return intake.setIntakePower(IntakeSubsystem.Speed.STOP);
-  }
+    public static Command runIntake(IntakeSubsystem intake) {
+        return intake.setIntakePower(IntakeSubsystem.Speed.INTAKE);
+    }
 
-  public static Command raiseIntake(IntakeSubsystem intake) {
-    return intake.setPivotPosition(IntakeSubsystem.Position.STOWED);
-  }
+    public static Command stopIntake(IntakeSubsystem intake) {
+        return intake.setIntakePower(IntakeSubsystem.Speed.STOP);
+    }
 
-  public static Command aimAndShoot(
-      Drive swerve, ShooterSubsystem shooter, FeederSubsystem feeder, IntakeSubsystem intake) {
-    return DriveCommands.joystickDriveAtAngle(
-            swerve,
-            () -> 0.0,
-            () -> 0.0,
-            () ->
-                RobotState.getInstance()
-                    .getPointAtAngle(() -> AllianceFlipUtil.apply(FieldConstants.Hub.goalPoint)))
+    public static Command raiseIntake(IntakeSubsystem intake) {
+        return intake.setPivotPosition(IntakeSubsystem.Position.STOWED);
+    }
+
+    public static Command aimAndShoot(
+            Drive swerve, ShooterSubsystem shooter, FeederSubsystem feeder, IntakeSubsystem intake) {
+        return DriveCommands.joystickDriveAtAngle(
+                swerve,
+                () -> 0.0,
+                () -> 0.0,
+                () -> RobotState.getInstance().getPointAtAngle(() -> AllianceFlipUtil.apply(FieldConstants.Hub.goalPoint)))
         .alongWith(shooter.autoShot())
-                    .alongWith(
-                            Commands.waitUntil(shooter::flywheelAtRPM)
-                                    .andThen(feeder.runFeeder(Volts.of(12.0)))
-                                    .alongWith(
-                                            Commands.waitSeconds(1.0)
-                                                    .andThen(intake.agitateCommand())
+        .alongWith(
+            Commands.waitUntil(shooter::flywheelAtRPM)
+                .andThen(feeder.runFeeder(Volts.of(12.0)))
+                .alongWith(
+                    Commands.waitSeconds(1.0)
+                    .andThen(intake.agitateCommand())
                                     )
-                    ).withTimeout(6.0);
+        ).withTimeout(6.0);
   }
+
+    public static Command aimAndShootAlt(Drive swerve, ShooterSubsystem shooterSubsystem, FeederSubsystem feederSubsystem, IntakeSubsystem intake) {
+        return DriveCommands.joystickDriveAtAngle(
+                        swerve,
+                        () -> 0.0,
+                        () -> 0.0,
+                        () -> RobotState.getInstance().getPointAtAngle(() -> AllianceFlipUtil.apply(FieldConstants.Hub.goalPoint))
+                )
+                .alongWith(shooterSubsystem.autoShot())
+                .alongWith(
+                        Commands.waitUntil(shooterSubsystem::flywheelAtRPM)
+                                .andThen(feederSubsystem.runFeeder(Volts.of(12.0))
+                                        .alongWith(
+                                                Commands.waitSeconds(1.0)
+                                                        .andThen(intake.agitateCommand()))
+                                )
+                ).withTimeout(5.0)
+                .andThen(intake.setIntakePower(IntakeSubsystem.Speed.STOP));
+
+    }
 }
