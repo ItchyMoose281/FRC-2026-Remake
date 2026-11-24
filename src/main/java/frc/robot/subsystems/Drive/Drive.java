@@ -41,6 +41,7 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Constants;
 import frc.robot.Constants.Mode;
+import frc.robot.RobotState;
 import frc.robot.generated.TunerConstants;
 import frc.robot.util.LocalADStarAK;
 import java.util.concurrent.locks.Lock;
@@ -95,8 +96,9 @@ public class Drive extends SubsystemBase {
         new SwerveModulePosition(),
         new SwerveModulePosition()
       };
-  private SwerveDrivePoseEstimator poseEstimator =
-      new SwerveDrivePoseEstimator(kinematics, rawGyroRotation, lastModulePositions, Pose2d.kZero);
+  private SwerveDrivePoseEstimator poseEstimator = RobotState.getInstance().poseEstimator;
+  //      new SwerveDrivePoseEstimator(kinematics, rawGyroRotation, lastModulePositions,
+  // Pose2d.kZero);
 
   public Drive(
       GyroIO gyroIO,
@@ -202,10 +204,16 @@ public class Drive extends SubsystemBase {
 
       // Apply update
       poseEstimator.updateWithTime(sampleTimestamps[i], rawGyroRotation, modulePositions);
+      //      RobotState.getInstance().addOdometryMeasurement(rawGyroRotation, modulePositions,
+      // sampleTimestamps[i]);
+      RobotState.getInstance()
+          .addOdometryMeasurement(rawGyroRotation, modulePositions, sampleTimestamps[i]);
     }
 
     // Update gyro alert
     gyroDisconnectedAlert.set(!gyroInputs.connected && Constants.getMode() != Mode.SIM);
+    //
+    RobotState.getInstance().updateVelocityPeriodic(kinematics.toChassisSpeeds(getModuleStates()));
   }
 
   /**

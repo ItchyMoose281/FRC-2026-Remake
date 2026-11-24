@@ -49,9 +49,8 @@ public class DriveCommands {
     Rotation2d linearDirection = new Rotation2d(Math.atan2(y, x));
 
     // Square magnitude for more precise control
-    linearMagnitude = linearMagnitude * linearMagnitude;
-
-    // Return new linear velocity
+    // linearMagnitude = linearMagnitude * linearMagnitude;
+    // Return new linear velocity (no squaring for direct speed control)
     return new Pose2d(Translation2d.kZero, linearDirection)
         .transformBy(new Transform2d(linearMagnitude, 0.0, Rotation2d.kZero))
         .getTranslation();
