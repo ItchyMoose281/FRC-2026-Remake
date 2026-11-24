@@ -4,6 +4,7 @@ import static edu.wpi.first.units.Units.RPM;
 import static edu.wpi.first.units.Units.Volts;
 
 import com.gos.lib.properties.GosDoubleProperty;
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -33,6 +34,12 @@ public class ShooterSubsystem extends SubsystemBase {
     Logger.processInputs("Shooter", m_inputs);
 
     Logger.recordOutput("Shooter/Shooter RPM", m_inputs.shooterSpeedL.in(RPM));
+  }
+
+  public boolean flywheelAtRPM() {
+      return MathUtil.isNear(RobotState.getInstance().getShooterRPM(), m_inputs.shooterSpeedL.in(RPM), 100)
+              && MathUtil.isNear(RobotState.getInstance().getShooterRPM(), m_inputs.shooterSpeedM.in(RPM), 100)
+              && MathUtil.isNear(RobotState.getInstance().getShooterRPM(), m_inputs.shooterSpeedR.in(RPM), 100);
   }
 
   public Command setFlywheelVoltage(Voltage voltage) {

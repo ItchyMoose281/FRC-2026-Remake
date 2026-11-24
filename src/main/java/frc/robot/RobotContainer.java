@@ -11,8 +11,10 @@ import static edu.wpi.first.units.Units.*;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.XboxController;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
@@ -37,7 +39,6 @@ import frc.robot.subsystems.shooter.ShooterSubsystem;
 import frc.robot.subsystems.vision.*;
 import frc.robot.util.AllianceFlipUtil;
 import frc.robot.util.FieldConstants;
-import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 /**
  * This class is where the bulk of the robot should be declared. Since Command-based is a
@@ -57,7 +58,8 @@ public class RobotContainer {
   private final CommandXboxController driveController = new CommandXboxController(0);
 
   // Dashboard inputs
-  private final LoggedDashboardChooser<Command> autoChooser;
+  private final SendableChooser<Command> compAutoChooser;
+  private final SendableChooser<Command> testAutoChooser;
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
@@ -141,23 +143,31 @@ public class RobotContainer {
       default -> throw new IllegalStateException("Unexpected value: " + Constants.getMode());
     }
 
-    // Set up auto routines
-    autoChooser = new LoggedDashboardChooser<>("Auto Choices", AutoBuilder.buildAutoChooser());
+      compAutoChooser = AutoBuilder.buildAutoChooserWithOptionsModifier(
+              "", // Defaults to "None" (Commands.none())
+              (stream) -> stream.filter(auto -> !auto.getName().toLowerCase().startsWith("test"))
+      );
+
+      // 2. Test Chooser: includes ONLY autos starting with "test"
+      testAutoChooser = AutoBuilder.buildAutoChooserWithOptionsModifier(
+              "", // Defaults to "None" (Commands.none())
+              (stream) -> stream.filter(auto -> auto.getName().toLowerCase().startsWith("test"))
+      );
 
     // Set up SysId routines
-    autoChooser.addOption(
+    testAutoChooser.addOption(
         "Drive Wheel Radius Characterization", DriveCommands.wheelRadiusCharacterization(swerve));
-    autoChooser.addOption(
+    testAutoChooser.addOption(
         "Drive Simple FF Characterization", DriveCommands.feedforwardCharacterization(swerve));
-    autoChooser.addOption(
+    testAutoChooser.addOption(
         "Drive SysId (Quasistatic Forward)",
         swerve.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
+    testAutoChooser.addOption(
         "Drive SysId (Quasistatic Reverse)",
         swerve.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
-    autoChooser.addOption(
+    testAutoChooser.addOption(
         "Drive SysId (Dynamic Forward)", swerve.sysIdDynamic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
+    testAutoChooser.addOption(
         "Drive SysId (Dynamic Reverse)", swerve.sysIdDynamic(SysIdRoutine.Direction.kReverse));
 
     // Configure the button bindings
@@ -224,6 +234,18 @@ public class RobotContainer {
    * @return the command to run in autonomous
    */
   public Command getAutonomousCommand() {
-    return autoChooser.get();
+      Command compAuto = compAutoChooser.getSelected();
+
+      // Prioritize Comp Auto whenever one is selected (i.e., not Commands.none())
+      if (compAuto != null && !compAuto.equals(Commands.none())) {
+          return compAuto;
+      }
+
+      // Hard safety lock: block test autos whenever connected to the FMS
+      if (DriverStation.isFMSAttached()) {
+          return Commands.none();
+      }
+
+      return testAutoChooser.getSelected();
   }
 }

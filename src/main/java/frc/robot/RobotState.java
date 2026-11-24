@@ -131,7 +131,7 @@ public class RobotState {
   }
 
   /** Gets the needed hood angle at the robot's current distance */
-  //  @AutoLogOutput(key = "RobotState/HoodPercent")
+  @AutoLogOutput(key = "RobotState/HoodPercent")
   public double getHoodAngle() {
     //    return shooterHoodDistanceMap.get(getDistanceToHubInches());
     return distanceToShotMap.get(Meters.of(getDistanceToHubMeters())).hoodPosition;
@@ -144,7 +144,7 @@ public class RobotState {
   }
 
   /** Gets the needed shooter RPM angle at the robot's current distance */
-  //  @AutoLogOutput(key = "RobotState/ShooterRPM")
+  @AutoLogOutput(key = "RobotState/ShooterRPM")
   public double getShooterRPM() {
     //    return shooterSpeedDistanceMap.get(getDistanceToHubMeters());
     return distanceToShotMap.get(Meters.of(getDistanceToHubMeters())).shooterRPM;
